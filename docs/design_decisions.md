@@ -1,4 +1,4 @@
-# Design Decisions
+# Design Decisions & Major Trade-offs
 
 ### 1. Relational Database as a Queue (SQLite)
 - **Decision**: Used SQLite (a relational DB) as the central queue and state store rather than a dedicated message broker (like RabbitMQ or Redis).
