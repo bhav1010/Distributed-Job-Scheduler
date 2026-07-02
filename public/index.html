@@ -57,7 +57,7 @@
             <div class="glass-panel">
                 <h2>Job Queues</h2>
                 <table>
-                    <thead><tr><th>ID</th><th>Project</th><th>Name</th><th>Concurrency</th><th>Priority</th></tr></thead>
+                    <thead><tr><th>ID</th><th>Project</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="queues-body"></tbody>
                 </table>
                 <div style="margin-top:1rem;">
@@ -121,8 +121,12 @@
                     <td>#${q.id}</td>
                     <td>${q.project_name}</td>
                     <td>${q.name}</td>
-                    <td>${q.concurrency_limit}</td>
-                    <td>${q.priority}</td>
+                    <td><span class="badge ${q.is_paused ? 'status-Offline' : 'status-Active'}">${q.is_paused ? 'Paused' : 'Active'}</span></td>
+                    <td>
+                        <button style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: ${q.is_paused ? '#22c55e' : '#eab308'};" onclick="toggleQueue(${q.id})">
+                            ${q.is_paused ? '▶ Resume' : '⏸ Pause'}
+                        </button>
+                    </td>
                 </tr>
             `).join('');
         }
@@ -165,6 +169,11 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+            refresh();
+        }
+
+        async function toggleQueue(id) {
+            await fetch(`${API}/queues/${id}/toggle`, { method: 'PUT' });
             refresh();
         }
 

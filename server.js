@@ -29,6 +29,18 @@ app.post('/api/queues', (req, res) => {
   }
 });
 
+app.put('/api/queues/:id/toggle', (req, res) => {
+  try {
+    const queue = db.prepare('SELECT is_paused FROM queues WHERE id = ?').get(req.params.id);
+    if (!queue) return res.status(404).json({ error: 'Queue not found' });
+    const newState = queue.is_paused ? 0 : 1;
+    db.prepare('UPDATE queues SET is_paused = ? WHERE id = ?').run(newState, req.params.id);
+    res.json({ id: req.params.id, is_paused: newState });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.get('/api/queues', (req, res) => {
   const queues = db.prepare('SELECT q.*, p.name as project_name FROM queues q JOIN projects p ON q.project_id = p.id').all();
   res.json(queues);
