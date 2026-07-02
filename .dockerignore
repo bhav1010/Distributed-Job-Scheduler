@@ -1,0 +1,4 @@
+node_modules/
+scheduler.db
+scheduler.db-journal
+.git/
