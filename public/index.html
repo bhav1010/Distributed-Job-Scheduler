@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Job Scheduler</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --accent-color: #3b82f6;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.2), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(147, 51, 234, 0.2), transparent 40%);
+        }
+
+        h1, h2 {
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .glass-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            color: #94a3b8;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-Queued { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .status-Running { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+        .status-Completed { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .status-Failed { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .status-DeadLetter { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+
+        button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        .actions {
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Distributed Job Scheduler</h1>
+        
+        <div class="glass-panel">
+            <h2>System Health</h2>
+            <div class="stats-grid" id="stats">
+                <!-- Stats populated via JS -->
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Recent Jobs</h2>
+                <div class="actions">
+                    <button onclick="createQueue()">Create Queue</button>
+                    <button onclick="createJob(false)">Enqueue Job</button>
+                    <button onclick="createJob(true)" style="background: #ef4444;">Enqueue Failing Job</button>
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Queue</th>
+                        <th>Payload</th>
+                        <th>Retries</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-body">
+                    <!-- Jobs populated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                const container = document.getElementById('stats');
+                container.innerHTML = Object.entries(data).map(([key, value]) => \`
+                    <div class="stat-card">
+                        <div class="stat-value">\${value}</div>
+                        <div class="stat-label">\${key}</div>
+                    </div>
+                \`).join('');
+            } catch (e) {
+                console.error("Failed to fetch stats", e);
+            }
+        }
+
+        async function fetchJobs() {
+            try {
+                const res = await fetch('/api/jobs');
+                const jobs = await res.json();
+                const tbody = document.getElementById('jobs-body');
+                tbody.innerHTML = jobs.map(job => \`
+                    <tr>
+                        <td>#\${job.id}</td>
+                        <td><span class="status-badge status-\${job.status}">\${job.status}</span></td>
+                        <td>\${job.queue_id}</td>
+                        <td style="font-family: monospace; font-size: 0.875rem;">\${job.payload}</td>
+                        <td>\${job.retries_attempted}/\${job.max_retries}</td>
+                        <td>\${new Date(job.created_at).toLocaleString()}</td>
+                    </tr>
+                \`).join('');
+            } catch (e) {
+                console.error("Failed to fetch jobs", e);
+            }
+        }
+
+        async function createQueue() {
+            const name = prompt("Enter queue name:");
+            if (!name) return;
+            await fetch('/api/queues', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, priority: 1 })
+            });
+            alert('Queue created (if not already exists)!');
+        }
+
+        async function createJob(shouldFail) {
+            // Assume queue 1 exists for simplicity. In real app, we'd fetch queues first.
+            await fetch('/api/queues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'default' }) }).catch(e => {});
+            
+            await fetch('/api/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    queue_id: 1,
+                    payload: { task: 'process_data', shouldFail, timestamp: Date.now() }
+                })
+            });
+            refresh();
+        }
+
+        function refresh() {
+            fetchStats();
+            fetchJobs();
+        }
+
+        // Poll for updates every 2 seconds
+        setInterval(refresh, 2000);
+        refresh();
+    </script>
+</body>
+</html>
