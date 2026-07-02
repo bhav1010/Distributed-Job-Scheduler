@@ -39,4 +39,4 @@ This is a production-inspired, minimal distributed job scheduling platform desig
 - **Design Decisions**: `docs/design_decisions.md`
 
 ## Why This Architecture?
-To keep the code minimal and easy to explain, we used **SQLite** as the central store. A real production system processing millions of jobs a second might use Redis or Kafka, but using a relational DB is extremely common (e.g. Postgres-based queues) and perfectly demonstrates atomic locking and job state machines without complex setup. 
+To keep the code minimal, we used SQLite as the central store. A real production system processing millions of jobs a second might use Redis or Kafka, but using a relational DB is extremely common (e.g. Postgres-based queues) and perfectly demonstrates atomic locking and job state machines without complex setup. 
