@@ -5,20 +5,20 @@ This diagram outlines the relational schema for the Distributed Job Scheduler, c
 ```mermaid
 %%{init: { "theme": "default", "themeVariables": { "fontSize": "36px" } } }%%
 erDiagram
-    organizations ||--o{ projects : "OWNS"
+    organizations ||--o{ projects : ""
     organizations {
         INTEGER id PK
         TEXT name
     }
 
-    projects ||--o{ queues : "CONTAINS"
+    projects ||--o{ queues : ""
     projects {
         INTEGER id PK
         INTEGER org_id FK
         TEXT name
     }
 
-    retry_policies ||--o{ queues : "APPLIED TO"
+    retry_policies ||--o{ queues : ""
     retry_policies {
         INTEGER id PK
         TEXT name
@@ -27,7 +27,7 @@ erDiagram
         INTEGER max_retries
     }
 
-    queues ||--o{ jobs : "HOLDS"
+    queues ||--o{ jobs : ""
     queues {
         INTEGER id PK
         INTEGER project_id FK
@@ -38,7 +38,7 @@ erDiagram
         INTEGER is_paused
     }
 
-    jobs ||--o{ job_logs : "GENERATES"
+    jobs ||--o{ job_logs : ""
     jobs {
         INTEGER id PK
         INTEGER queue_id FK
@@ -52,7 +52,7 @@ erDiagram
         DATETIME updated_at
     }
 
-    workers ||--o{ job_logs : "PROCESSES"
+    workers ||--o{ job_logs : ""
     workers {
         TEXT id PK
         TEXT status
