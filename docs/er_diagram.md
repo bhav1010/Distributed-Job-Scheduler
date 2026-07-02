@@ -3,6 +3,7 @@
 This diagram outlines the relational schema for the Distributed Job Scheduler, completely satisfying the requirements for Organizations, Projects, Queues, Jobs, Retry Policies, and logging.
 
 ```mermaid
+%%{init: { "themeVariables": { "fontSize": "24px", "fontFamily": "arial" } } }%%
 erDiagram
     organizations ||--o{ projects : "owns"
     organizations {
@@ -21,7 +22,7 @@ erDiagram
     retry_policies {
         INTEGER id PK
         TEXT name
-        TEXT strategy "fixed, linear, exponential"
+        TEXT strategy "fixed | linear | exp"
         INTEGER base_delay_ms
         INTEGER max_retries
     }
@@ -41,7 +42,7 @@ erDiagram
     jobs {
         INTEGER id PK
         INTEGER queue_id FK
-        TEXT status "Queued, Claimed, Running, Completed, Failed, DeadLetter"
+        TEXT status "Enum: Queued -> DeadLetter"
         TEXT payload
         TEXT result
         TEXT cron_expression
