@@ -40,20 +40,19 @@ app.post('/api/jobs', (req, res) => {
   if (!queue_id || !payload) return res.status(400).json({ error: 'queue_id and payload are required' });
   
   try {
-    const time = scheduled_at ? new Date(scheduled_at).toISOString() : new Date().toISOString();
+    const timeSql = scheduled_at ? `datetime('${scheduled_at}')` : "datetime('now')";
     
-    // Support for batch jobs (if payload is an array)
     if (Array.isArray(payload)) {
-      const insert = db.prepare('INSERT INTO jobs (queue_id, payload, scheduled_at, cron_expression) VALUES (?, ?, ?, ?)');
+      const insert = db.prepare(`INSERT INTO jobs (queue_id, payload, scheduled_at, cron_expression) VALUES (?, ?, ${timeSql}, ?)`);
       const insertMany = db.transaction((jobs) => {
-        for (const job of jobs) insert.run(queue_id, JSON.stringify(job), time, cron_expression);
+        for (const job of jobs) insert.run(queue_id, JSON.stringify(job), cron_expression);
       });
       insertMany(payload);
       return res.status(201).json({ message: `Batch enqueued ${payload.length} jobs` });
     }
 
-    const stmt = db.prepare('INSERT INTO jobs (queue_id, payload, scheduled_at, cron_expression) VALUES (?, ?, ?, ?)');
-    const info = stmt.run(queue_id, JSON.stringify(payload), time, cron_expression);
+    const stmt = db.prepare(`INSERT INTO jobs (queue_id, payload, scheduled_at, cron_expression) VALUES (?, ?, ${timeSql}, ?)`);
+    const info = stmt.run(queue_id, JSON.stringify(payload), cron_expression);
     res.status(201).json({ id: info.lastInsertRowid, queue_id, status: 'Queued' });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -61,16 +60,20 @@ app.post('/api/jobs', (req, res) => {
 });
 
 app.get('/api/jobs', (req, res) => {
-  // Pagination and Filtering
   const limit = Math.min(parseInt(req.query.limit) || 50, 100);
   const offset = parseInt(req.query.offset) || 0;
   const status = req.query.status;
   
-  let query = 'SELECT jobs.*, queues.name as queue_name FROM jobs JOIN queues ON jobs.queue_id = queues.id';
+  let query = `
+    SELECT jobs.*, queues.name as queue_name, retry_policies.max_retries 
+    FROM jobs 
+    JOIN queues ON jobs.queue_id = queues.id
+    LEFT JOIN retry_policies ON queues.retry_policy_id = retry_policies.id
+  `;
   const params = [];
   
   if (status) {
-    query += ' WHERE status = ?';
+    query += ' WHERE jobs.status = ?';
     params.push(status);
   }
   
