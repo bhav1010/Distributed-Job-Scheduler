@@ -176,8 +176,8 @@
                 const container = document.getElementById('stats');
                 container.innerHTML = Object.entries(data).map(([key, value]) => `
                     <div class="stat-card">
-                        <div class="stat-value">\${value}</div>
-                        <div class="stat-label">\${key}</div>
+                        <div class="stat-value">${value}</div>
+                        <div class="stat-label">${key}</div>
                     </div>
                 `).join('');
             } catch (e) {
@@ -192,12 +192,12 @@
                 const tbody = document.getElementById('jobs-body');
                 tbody.innerHTML = jobs.map(job => `
                     <tr>
-                        <td>#\${job.id}</td>
-                        <td><span class="status-badge status-\${job.status}">\${job.status}</span></td>
-                        <td>\${job.queue_id}</td>
-                        <td style="font-family: monospace; font-size: 0.875rem;">\${job.payload}</td>
-                        <td>\${job.retries_attempted}/\${job.max_retries}</td>
-                        <td>\${new Date(job.created_at).toLocaleString()}</td>
+                        <td>#${job.id}</td>
+                        <td><span class="status-badge status-${job.status}">${job.status}</span></td>
+                        <td>${job.queue_id}</td>
+                        <td style="font-family: monospace; font-size: 0.875rem;">${job.payload}</td>
+                        <td>${job.retries_attempted}/${job.max_retries}</td>
+                        <td>${new Date(job.created_at).toLocaleString()}</td>
                     </tr>
                 `).join('');
             } catch (e) {
