@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - db-data:/app/data
+    environment:
+      - DB_PATH=/app/data/scheduler.db
+    command: node server.js
+    
+  worker:
+    build: .
+    volumes:
+      - db-data:/app/data
+    environment:
+      - DB_PATH=/app/data/scheduler.db
+    command: node worker.js
+    depends_on:
+      - api
+
+volumes:
+  db-data:
