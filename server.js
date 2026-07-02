@@ -49,7 +49,7 @@ app.post('/api/jobs', (req, res) => {
         for (const job of jobs) insert.run(queue_id, JSON.stringify(job), time, cron_expression);
       });
       insertMany(payload);
-      return res.status(201).json({ message: \`Batch enqueued \${payload.length} jobs\` });
+      return res.status(201).json({ message: `Batch enqueued ${payload.length} jobs` });
     }
 
     const stmt = db.prepare('INSERT INTO jobs (queue_id, payload, scheduled_at, cron_expression) VALUES (?, ?, ?, ?)');
@@ -91,7 +91,7 @@ app.get('/api/workers', (req, res) => {
 
 // --- STATS ---
 app.get('/api/stats', (req, res) => {
-  const stats = db.prepare(\`SELECT status, COUNT(*) as count FROM jobs GROUP BY status\`).all();
+  const stats = db.prepare(`SELECT status, COUNT(*) as count FROM jobs GROUP BY status`).all();
   const formatted = { Queued: 0, Claimed: 0, Running: 0, Completed: 0, Failed: 0, DeadLetter: 0 };
   stats.forEach(s => formatted[s.status] = s.count);
   res.json(formatted);
@@ -99,5 +99,5 @@ app.get('/api/stats', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(\`API Server running on http://localhost:\${PORT}\`);
+  console.log(`API Server running on http://localhost:${PORT}`);
 });
