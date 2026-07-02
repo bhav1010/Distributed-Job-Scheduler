@@ -84,6 +84,11 @@ function initDb() {
     INSERT OR IGNORE INTO organizations (id, name) VALUES (1, 'Default Org');
     INSERT OR IGNORE INTO projects (id, org_id, name) VALUES (1, 1, 'Default Project');
     INSERT OR IGNORE INTO retry_policies (id, name, strategy, base_delay_ms, max_retries) VALUES (1, 'Default Policy', 'exponential', 2000, 3);
+    
+    -- Performance Indexes
+    CREATE INDEX IF NOT EXISTS idx_jobs_status_scheduled ON jobs(status, scheduled_at);
+    CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_id);
+    CREATE INDEX IF NOT EXISTS idx_job_logs_job_id ON job_logs(job_id);
   `);
 }
 

@@ -106,6 +106,25 @@ app.put('/api/jobs/:id/cancel-cron', (req, res) => {
   }
 });
 
+app.get('/api/jobs/:id/logs', (req, res) => {
+  try {
+    const logs = db.prepare('SELECT * FROM job_logs WHERE job_id = ? ORDER BY created_at DESC').all(req.params.id);
+    res.json(logs);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/jobs/:id/retry', (req, res) => {
+  try {
+    const info = db.prepare("UPDATE jobs SET status = 'Queued', retries_attempted = 0, scheduled_at = datetime('now') WHERE id = ?").run(req.params.id);
+    if (info.changes === 0) return res.status(404).json({ error: 'Job not found' });
+    res.json({ message: 'Job queued for manual retry' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // --- WORKERS ---
 app.get('/api/workers', (req, res) => {
   // Clean up dead workers (no heartbeat for > 15 seconds)

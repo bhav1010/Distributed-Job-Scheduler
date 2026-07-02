@@ -47,35 +47,44 @@ async function poll() {
   if (isShuttingDown) return;
   heartbeat();
   
-  // Find a job (Atomicity: SQLite transaction locking handles this cleanly in single-node DB)
-  // We respect is_paused and scheduled_at
-  const findJob = db.prepare(`
-    SELECT jobs.*, queues.name as queue_name, queues.retry_policy_id 
+  // Find jobs considering concurrency limits
+  const findJobs = db.prepare(`
+    SELECT jobs.*, queues.name as queue_name, queues.retry_policy_id, queues.concurrency_limit 
     FROM jobs 
     JOIN queues ON jobs.queue_id = queues.id
     WHERE jobs.status = 'Queued' 
-      AND jobs.scheduled_at <= CURRENT_TIMESTAMP
+      AND jobs.scheduled_at <= datetime('now')
       AND queues.is_paused = 0
     ORDER BY queues.priority DESC, jobs.created_at ASC 
-    LIMIT 1
+    LIMIT 10
   `);
   
-  const job = findJob.get();
-  if (!job) return;
+  const potentialJobs = findJobs.all();
+  if (potentialJobs.length === 0) return;
 
-  // Claim it atomically
+  const jobsToProcess = [];
   const claimStmt = db.prepare("UPDATE jobs SET status = 'Claimed', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'Queued'");
-  const info = claimStmt.run(job.id);
-  
-  if (info.changes > 0) {
-    db.prepare("UPDATE jobs SET status = 'Running', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(job.id);
-    
+  const runningCountStmt = db.prepare("SELECT count(*) as count FROM jobs WHERE queue_id = ? AND status IN ('Claimed', 'Running')");
+
+  // Atomically claim while respecting concurrency
+  for (const job of potentialJobs) {
+    const active = runningCountStmt.get(job.queue_id).count;
+    if (active < job.concurrency_limit) {
+      const info = claimStmt.run(job.id);
+      if (info.changes > 0) {
+        db.prepare("UPDATE jobs SET status = 'Running', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(job.id);
+        jobsToProcess.push(job);
+      }
+    }
+  }
+
+  // Execute concurrently
+  await Promise.all(jobsToProcess.map(async (job) => {
     try {
       const result = await processJob(job);
       
       // Handle Cron (recurring)
       if (job.cron_expression) {
-        // Simple mock: schedule it again 1 minute from now
         db.prepare("UPDATE jobs SET status = 'Queued', result = ?, scheduled_at = datetime('now', '+1 minute'), updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(result, job.id);
       } else {
         db.prepare("UPDATE jobs SET status = 'Completed', result = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(result, job.id);
@@ -104,7 +113,7 @@ async function poll() {
       
       db.prepare("INSERT INTO job_logs (job_id, worker_id, log_message) VALUES (?, ?, ?)").run(job.id, WORKER_ID, `Failed (Attempt ${newRetries}): ${error.message}`);
     }
-  }
+  }));
 }
 
 // Graceful Shutdown

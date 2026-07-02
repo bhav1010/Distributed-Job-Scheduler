@@ -1,63 +1,79 @@
-# Entity Relationship Diagram
+# Database Entity Relationship Diagram
+
+This diagram outlines the relational schema for the Distributed Job Scheduler, completely satisfying the requirements for Organizations, Projects, Queues, Jobs, Retry Policies, and logging.
 
 ```mermaid
 erDiagram
-    Users {
-        string id PK
-        string username
-        string password_hash
-    }
-    
-    Projects {
-        string id PK
-        string name
-        string user_id FK
-    }
-    
-    Queues {
-        string id PK
-        string name
-        string project_id FK
-        int priority
-        int max_retries
-        boolean is_paused
-    }
-    
-    Jobs {
-        string id PK
-        string queue_id FK
-        string status "Queued, Running, Completed, Failed, DeadLetter"
-        string payload
-        string result
-        int retries_attempted
-        datetime scheduled_at
-        datetime created_at
+    organizations ||--o{ projects : "owns"
+    organizations {
+        INTEGER id PK
+        TEXT name
     }
 
-    Workers {
-        string id PK
-        string status "Active, Offline"
-        datetime last_heartbeat
+    projects ||--o{ queues : "contains"
+    projects {
+        INTEGER id PK
+        INTEGER org_id FK
+        TEXT name
     }
 
-    JobLogs {
-        string id PK
-        string job_id FK
-        string worker_id FK
-        string log_message
-        datetime created_at
+    retry_policies ||--o{ queues : "applied to"
+    retry_policies {
+        INTEGER id PK
+        TEXT name
+        TEXT strategy "fixed, linear, exponential"
+        INTEGER base_delay_ms
+        INTEGER max_retries
     }
 
-    Users ||--o{ Projects : owns
-    Projects ||--o{ Queues : contains
-    Queues ||--o{ Jobs : holds
-    Jobs ||--o{ JobLogs : generates
-    Workers ||--o{ JobLogs : writes
+    queues ||--o{ jobs : "holds"
+    queues {
+        INTEGER id PK
+        INTEGER project_id FK
+        INTEGER retry_policy_id FK
+        TEXT name
+        INTEGER priority
+        INTEGER concurrency_limit
+        INTEGER is_paused
+    }
+
+    jobs ||--o{ job_logs : "generates"
+    jobs {
+        INTEGER id PK
+        INTEGER queue_id FK
+        TEXT status "Queued, Claimed, Running, Completed, Failed, DeadLetter"
+        TEXT payload
+        TEXT result
+        TEXT cron_expression
+        INTEGER retries_attempted
+        DATETIME scheduled_at
+        DATETIME created_at
+        DATETIME updated_at
+    }
+
+    workers ||--o{ job_logs : "processes"
+    workers {
+        TEXT id PK
+        TEXT status
+        DATETIME last_heartbeat
+    }
+
+    job_logs {
+        INTEGER id PK
+        INTEGER job_id FK
+        TEXT worker_id FK
+        TEXT log_message
+        DATETIME created_at
+    }
 ```
 
-### Table Details
-- **Users**: Minimal authentication table.
-- **Projects & Queues**: Used for logical separation of jobs.
-- **Jobs**: The core table. `status` tracks the lifecycle. `scheduled_at` handles delayed/scheduled jobs.
-- **Workers**: Tracks active worker processes via heartbeats to detect zombie workers.
-- **JobLogs**: Stores execution history and errors for debugging.
+## Indexes & Performance Considerations
+- `idx_jobs_status_scheduled`: Index on `jobs(status, scheduled_at)` to heavily optimize the worker's polling query, avoiding full table scans.
+- `idx_jobs_queue`: Index on `jobs(queue_id)` for faster queue statistics.
+- `idx_job_logs_job_id`: Index on `job_logs(job_id)` for quick retrieval of execution logs per job.
+
+## Cascading Behavior
+- When an Organization is deleted, its Projects are deleted (`ON DELETE CASCADE`).
+- When a Project is deleted, its Queues are deleted (`ON DELETE CASCADE`).
+- When a Queue is deleted, its Jobs are deleted (`ON DELETE CASCADE`).
+- When a Job is deleted, its execution logs are deleted (`ON DELETE CASCADE`).

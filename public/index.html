@@ -55,31 +55,32 @@
             </div>
             
             <div class="glass-panel">
-                <h2>Job Queues</h2>
-                <table>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Job Queues</h2>
+                    <button onclick="createQueue()" style="font-size:0.75rem;">+ New Queue</button>
+                </div>
+                <table style="margin-top: 1rem;">
                     <thead><tr><th>ID</th><th>Project</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="queues-body"></tbody>
                 </table>
-                <div style="margin-top:1rem;">
-                    <button onclick="createQueue()">+ New Queue</button>
-                </div>
             </div>
         </div>
 
         <div class="glass-panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:1rem;">
                 <h2>Job Explorer</h2>
-                <div>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end;">
                     <button onclick="enqueueBatch()">Enqueue Batch</button>
-                    <button onclick="createJob(false, true)">Enqueue Recurring (Cron)</button>
+                    <button onclick="createJob(false, true, false)">Enqueue Recurring (Cron)</button>
+                    <button onclick="createJob(false, false, true)">Enqueue Delayed (1 min)</button>
                     <button onclick="createJob(false)">Enqueue Immediate</button>
-                    <button onclick="createJob(true)" style="background: #ef4444;">Enqueue Failing (Test Retries)</button>
+                    <button onclick="createJob(true)" style="background: #ef4444;">Enqueue Failing</button>
                 </div>
             </div>
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th><th>Status</th><th>Queue</th><th>Payload</th><th>Retries</th><th>Scheduled For</th>
+                        <th>ID</th><th>Status</th><th>Queue</th><th>Payload</th><th>Retries</th><th>Scheduled For</th><th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="jobs-body"></tbody>
@@ -145,6 +146,10 @@
                         ${new Date(job.scheduled_at).toLocaleTimeString()} 
                         ${job.cron_expression ? `<button style="background:transparent; padding:0; margin-left:0.5rem; font-size:1rem;" title="Click to cancel recurring schedule" onclick="cancelCron(${job.id})">🔄</button>` : ''}
                     </td>
+                    <td>
+                        <button style="padding:0.25rem 0.5rem; font-size:0.7rem; background:#334155;" onclick="viewLogs(${job.id})">Logs</button>
+                        ${(job.status === 'Failed' || job.status === 'DeadLetter') ? `<button style="padding:0.25rem 0.5rem; font-size:0.7rem; background:#eab308; margin-left:0.25rem;" onclick="retryJob(${job.id})">Retry</button>` : ''}
+                    </td>
                 </tr>
             `).join('');
         }
@@ -160,12 +165,13 @@
             refresh();
         }
 
-        async function createJob(shouldFail, recurring = false) {
+        async function createJob(shouldFail, recurring = false, delayed = false) {
             const body = {
                 queue_id: 1,
                 payload: { task: 'process_data', shouldFail, timestamp: Date.now() }
             };
-            if (recurring) body.cron_expression = '0 * * * *'; // Mock cron
+            if (recurring) body.cron_expression = '0 * * * *';
+            if (delayed) body.scheduled_at = new Date(Date.now() + 60000).toISOString();
             
             await fetch(`${API}/jobs`, {
                 method: 'POST',
@@ -183,6 +189,18 @@
         async function cancelCron(id) {
             await fetch(`${API}/jobs/${id}/cancel-cron`, { method: 'PUT' });
             refresh();
+        }
+
+        async function retryJob(id) {
+            await fetch(`${API}/jobs/${id}/retry`, { method: 'PUT' });
+            refresh();
+        }
+
+        async function viewLogs(id) {
+            const res = await fetch(`${API}/jobs/${id}/logs`);
+            const logs = await res.json();
+            const logText = logs.map(l => `[${new Date(l.created_at).toLocaleTimeString()}] ${l.log_message}`).join('\n');
+            alert(`Logs for Job #${id}:\n\n${logText || 'No logs yet.'}`);
         }
 
         async function enqueueBatch() {
