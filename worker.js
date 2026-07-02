@@ -38,9 +38,10 @@ async function poll() {
   // 1. Find a job to run (atomic claim simulation for SQLite)
   // We look for a Queued job whose scheduled_at is in the past
   const findJob = db.prepare(`
-    SELECT * FROM jobs 
-    WHERE status = 'Queued' AND scheduled_at <= CURRENT_TIMESTAMP
-    ORDER BY priority DESC, created_at ASC 
+    SELECT jobs.* FROM jobs 
+    JOIN queues ON jobs.queue_id = queues.id
+    WHERE jobs.status = 'Queued' AND jobs.scheduled_at <= CURRENT_TIMESTAMP
+    ORDER BY queues.priority DESC, jobs.created_at ASC 
     LIMIT 1
   `);
   
