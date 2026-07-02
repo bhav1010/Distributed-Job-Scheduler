@@ -96,6 +96,16 @@ app.get('/api/jobs', (req, res) => {
   res.json(jobs);
 });
 
+app.put('/api/jobs/:id/cancel-cron', (req, res) => {
+  try {
+    const info = db.prepare('UPDATE jobs SET cron_expression = NULL WHERE id = ?').run(req.params.id);
+    if (info.changes === 0) return res.status(404).json({ error: 'Job not found' });
+    res.json({ message: 'Recurring schedule cancelled' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // --- WORKERS ---
 app.get('/api/workers', (req, res) => {
   // Clean up dead workers (no heartbeat for > 15 seconds)

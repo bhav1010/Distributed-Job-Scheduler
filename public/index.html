@@ -141,7 +141,10 @@
                     <td>${job.queue_name}</td>
                     <td style="font-family: monospace; font-size: 0.75rem;">${job.payload}</td>
                     <td>${job.retries_attempted} / ${job.max_retries}</td>
-                    <td>${new Date(job.scheduled_at).toLocaleTimeString()} ${job.cron_expression ? '🔄' : ''}</td>
+                    <td>
+                        ${new Date(job.scheduled_at).toLocaleTimeString()} 
+                        ${job.cron_expression ? `<button style="background:transparent; padding:0; margin-left:0.5rem; font-size:1rem;" title="Click to cancel recurring schedule" onclick="cancelCron(${job.id})">🔄</button>` : ''}
+                    </td>
                 </tr>
             `).join('');
         }
@@ -174,6 +177,11 @@
 
         async function toggleQueue(id) {
             await fetch(`${API}/queues/${id}/toggle`, { method: 'PUT' });
+            refresh();
+        }
+
+        async function cancelCron(id) {
+            await fetch(`${API}/jobs/${id}/cancel-cron`, { method: 'PUT' });
             refresh();
         }
 
